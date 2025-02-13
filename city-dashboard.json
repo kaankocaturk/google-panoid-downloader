@@ -1,0 +1,49 @@
+[  
+    {"city" : "van", "min_latitude" : "37.763709", "min_longitude" : "42.472150", "max_latitude" : "39.329374",
+        "max_longitude" : "44.456243"
+    },
+    {"city" : "adıyaman", "min_latitude" : "37.450038", "min_longitude" : "37.427368", "max_latitude" : "38.146626",
+        "max_longitude" : "39.257251"
+    },
+    {"city" : "diyarbakır", "min_latitude" : "37.541046", "min_longitude" : "39.060634", "max_latitude" : "38.516116",
+        "max_longitude" : "41.158972"
+    },
+    {"city" : "batman", "min_latitude" : "37.511326", "min_longitude" : "41.064568", "max_latitude" : "38.545703",
+        "max_longitude" : "41.725559"
+    },
+    {"city" : "siirt", "min_latitude" : "37.664693", "min_longitude" : "41.242900", "max_latitude" : "38.228230",
+        "max_longitude" : "42.908950"
+    },
+    {"city" : "hakkari", "min_latitude" : "37.143896", "min_longitude" : "43.439309", "max_latitude" : "37.815206",
+        "max_longitude" : "44.790628"
+    },
+    {"city" : "kilis", "min_latitude" : "36.635754", "min_longitude" : "36.710713", "max_latitude" : "37.006632",
+        "max_longitude" : "37.586289"
+    },
+    {"city" : "hatay", "min_latitude" : "35.785566", "min_longitude" : "35.535856", "max_latitude" : "36.999898",
+        "max_longitude" : "36.643052"
+    },
+    {"city" : "gaziantep", "min_latitude" : "36.763243", "min_longitude" : "36.353371", "max_latitude" : "37.549809",
+        "max_longitude" : "38.159262"
+    },
+    {"city" : "şanlıurfa", "min_latitude" : "36.694416", "min_longitude" : "37.846942", "max_latitude" : "37.925896",
+        "max_longitude" : "40.354203"
+    },
+    {"city" : "şırnak", "min_latitude" : "37.024145", "min_longitude" : "41.421899", "max_latitude" : "37.707199",
+        "max_longitude" : "43.577717"
+    },
+    {"city" : "mardin", "min_latitude" : "37.113297", "min_longitude" : "39.830176", "max_latitude" : "37.666875",
+        "max_longitude" : "41.666652",
+        "regions_will_be_removed" : [
+            {"label" : "kızıltepe" , "min_latitude" : "37.141599", "min_longitude" : "40.545825", 
+                "max_latitude" : "37.173661", "max_longitude" : "40.618699"
+            },
+            {"label" : "derik" , "min_latitude" : "37.174113", "min_longitude" : "40.556730", 
+                "max_latitude" : "37.207000", "max_longitude" : "40.618021"
+            }
+            
+        ]
+    },
+    {"city" : "cizre", "min_latitude" : "37.313716", "min_longitude" : "42.162139", "max_latitude" : "37.350937", "max_longitude" : "42.207352"}
+]
+
