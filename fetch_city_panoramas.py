@@ -22,7 +22,7 @@ output_dir = f"panoramic_coords/{city}"
 os.makedirs(output_dir, exist_ok=True)  # Create output directory if it doesn't exist
 
 # API Key
-API_KEY = 'AIzaSyArVaE8IDQ2oXtbpTPkn_Z-cdByragcA9g' 
+API_KEY = '' 
 
 # Retryable session for HTTP requests
 session = requests.Session()
