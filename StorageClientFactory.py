@@ -1,11 +1,10 @@
-from abc import ABC, abstractmethod
 import os
 import configparser
+from abc import ABC, abstractmethod
 from urllib.parse import urlparse
 
 # ---------------------------------------------------------------------
-# Interface (Dependency Inversion / Interface Segregation)
-# Clients depend only on this minimal abstraction.
+# StorageClientInterface (Dependency Inversion / Interface Segregation)
 # ---------------------------------------------------------------------
 class StorageClientInterface(ABC):
     @abstractmethod
@@ -16,9 +15,13 @@ class StorageClientInterface(ABC):
     @abstractmethod
     def get_file_key(self, local_file_path: str, rev: str = "HEAD") -> str:
         """
-        Given a local file path that is tracked by DVC,
-        return the remote file key (object key) using the DVC API.
+        Given a local file path tracked by DVC, return the remote file key.
         """
+        pass
+
+    @abstractmethod
+    def list_files(self, dir_path: str) -> list:
+        """Lists all file keys (or paths) under the given directory."""
         pass
 
     @classmethod
@@ -28,8 +31,7 @@ class StorageClientInterface(ABC):
         pass
 
 # ---------------------------------------------------------------------
-# S3 Storage Client using MinIO (Single Responsibility)
-# Implements its own DVC config extraction and get_file_key.
+# S3StorageClient using MinIO (Single Responsibility)
 # ---------------------------------------------------------------------
 class S3StorageClient(StorageClientInterface):
     def __init__(self, remote_url: str, config: dict):
@@ -51,7 +53,6 @@ class S3StorageClient(StorageClientInterface):
 
     def file_exists(self, file_path: str) -> bool:
         from minio.error import S3Error
-        # Extract bucket from the remote URL (e.g., s3://bucket_name/...)
         parsed = urlparse(self.remote_url)
         bucket = parsed.netloc
         key = file_path.lstrip('/')
@@ -66,13 +67,18 @@ class S3StorageClient(StorageClientInterface):
 
     def get_file_key(self, local_file_path: str, rev: str = "HEAD") -> str:
         import dvc.api
-        # dvc.api.get_url returns the remote URL for the local file,
-        # for example: "s3://bucket/md5/ab/abcdef1234567890..."
         remote_file_url = dvc.api.get_url(
             local_file_path, repo=self.repo_path, remote=self.remote_name, rev=rev
         )
         parsed = urlparse(remote_file_url)
         return parsed.path.lstrip('/')
+
+    def list_files(self, dir_path: str) -> list:
+        parsed = urlparse(self.remote_url)
+        bucket = parsed.netloc
+        prefix = dir_path.lstrip('/')
+        objects = self.client.list_objects(bucket, prefix=prefix, recursive=True)
+        return [obj.object_name for obj in objects if obj.object_name.lower().endswith('.jpg')]
 
     @classmethod
     def from_dvc_config(cls, repo_path: str, remote_name: str) -> "S3StorageClient":
@@ -81,17 +87,12 @@ class S3StorageClient(StorageClientInterface):
         if not remote_url or not remote_url.startswith("s3://"):
             raise ValueError("DVC remote URL is not S3 for this client.")
         instance = cls(remote_url, config)
-        # Save the repo path and remote name for later use in dvc.api calls.
         instance.repo_path = repo_path
         instance.remote_name = remote_name
         return instance
 
     @staticmethod
     def _get_dvc_remote_config(repo_path: str, remote_name: str) -> dict:
-        """
-        Extracts and returns the DVC configuration for this remote.
-        This method is custom for the S3 storage client.
-        """
         config_path = os.path.join(repo_path, ".dvc", "config")
         parser = configparser.ConfigParser()
         parser.read(config_path)
@@ -101,8 +102,7 @@ class S3StorageClient(StorageClientInterface):
         return dict(parser[section])
 
 # ---------------------------------------------------------------------
-# Local Storage Client (Single Responsibility)
-# Implements its own DVC config extraction and get_file_key.
+# LocalStorageClient (Single Responsibility)
 # ---------------------------------------------------------------------
 class LocalStorageClient(StorageClientInterface):
     def __init__(self, base_path: str):
@@ -114,12 +114,16 @@ class LocalStorageClient(StorageClientInterface):
 
     def get_file_key(self, local_file_path: str, rev: str = "HEAD") -> str:
         import dvc.api
-        # For local storage, dvc.api.get_url typically returns a file:// URL.
         remote_file_url = dvc.api.get_url(
             local_file_path, repo=self.repo_path, remote=self.remote_name, rev=rev
         )
+        from urllib.parse import urlparse
         parsed = urlparse(remote_file_url)
         return parsed.path.lstrip('/')
+
+    def list_files(self, dir_path: str) -> list:
+        full_dir = os.path.join(self.base_path, dir_path)
+        return [os.path.join(dir_path, f) for f in os.listdir(full_dir) if f.lower().endswith('.jpg')]
 
     @classmethod
     def from_dvc_config(cls, repo_path: str, remote_name: str) -> "LocalStorageClient":
@@ -127,7 +131,6 @@ class LocalStorageClient(StorageClientInterface):
         remote_url = config.get("url")
         if not remote_url:
             raise ValueError("No URL found in DVC config for local storage.")
-        # Remove the "file://" prefix if present.
         base_path = remote_url.replace("file://", "") if remote_url.startswith("file://") else remote_url
         instance = cls(base_path)
         instance.repo_path = repo_path
@@ -136,10 +139,6 @@ class LocalStorageClient(StorageClientInterface):
 
     @staticmethod
     def _get_dvc_remote_config(repo_path: str, remote_name: str) -> dict:
-        """
-        Extracts and returns the DVC configuration for local storage.
-        This method is custom for the local storage client.
-        """
         config_path = os.path.join(repo_path, ".dvc", "config")
         parser = configparser.ConfigParser()
         parser.read(config_path)
@@ -149,8 +148,7 @@ class LocalStorageClient(StorageClientInterface):
         return dict(parser[section])
 
 # ---------------------------------------------------------------------
-# Factory (Open/Closed)
-# Creates the correct storage client based on the DVC remote URL.
+# StorageClientFactory (Open/Closed Principle)
 # ---------------------------------------------------------------------
 class StorageClientFactory:
     @staticmethod
@@ -170,30 +168,3 @@ class StorageClientFactory:
             return LocalStorageClient.from_dvc_config(repo_path, remote_name)
         else:
             raise ValueError("Unsupported or unknown storage type.")
-
-# ---------------------------------------------------------------------
-# Client Code (Dependency Inversion)
-# Uses the abstract interface without knowledge of underlying implementations.
-# ---------------------------------------------------------------------
-if __name__ == "__main__":
-    repo_path = "/path/to/your/dvc_repo"  # Adjust to your local DVC repository
-    remote_name = "minio"                # Use the remote name as in your .dvc/config
-
-    # The factory instantiates the correct storage client.
-    client = StorageClientFactory.create_storage_client(repo_path, remote_name)
-    
-    # Provide a local file path (tracked by DVC).
-    local_file_path = "public/panoramic_12345.jpg"
-    
-    try:
-        # Derive the remote file key from the local file path using DVC API.
-        file_key = client.get_file_key(local_file_path)
-        print("Derived file key from DVC API:", file_key)
-    except Exception as e:
-        print("Error deriving file key:", e)
-    
-    # Optionally, check if the file exists in the remote storage.
-    if client.file_exists(file_key):
-        print("File exists in the remote storage.")
-    else:
-        print("File does not exist in the remote storage.")
